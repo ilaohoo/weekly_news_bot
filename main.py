@@ -1,12 +1,12 @@
 import sys
 from datetime import datetime
 
-sys.path.append('.')  # 确保 src 模块可导入
+sys.path.append('.')
 
 from src.collector import NewsCollector
 from src.summarizer import WeeklySummarizer
 from src.report_builder import ReportBuilder
-from src.wxpusher_publisher import WxPusherPublisher
+from src.pushplus_publisher import PushPlusPublisher
 from src.config import Config
 
 def main():
@@ -33,12 +33,12 @@ def main():
         f.write(html)
     print(f"💾 已保存 {filename}")
     
-    # 4. WxPusher 推送（支持 Markdown）
+    # 4. PushPlus 推送（自动去除 Markdown 符号）
     print("📤 推送周报...")
-    publisher = WxPusherPublisher()
+    publisher = PushPlusPublisher()
     title = f"{Config.WEEKLY_REPORT_TITLE} ({datetime.now().strftime('%m月%d日')})"
     
-    if publisher.send(title, content, content_type=3):
+    if publisher.send(title, content):
         print("✅ 推送成功！请查看微信消息。")
     else:
         print("❌ 推送失败，请检查日志。")
