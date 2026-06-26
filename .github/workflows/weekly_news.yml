@@ -9,10 +9,8 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      # 升级 actions/checkout 到 v6
       - uses: actions/checkout@v6
       
-      # 升级 actions/setup-python 到 v6（关键修改）
       - name: 安装 Python
         uses: actions/setup-python@v6
         with:
@@ -27,11 +25,9 @@ jobs:
       - name: 运行周报
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
-          WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: python main.py
       
-      # 也建议将 upload-artifact 升级到 v6
       - name: 上传 HTML 结果
         uses: actions/upload-artifact@v6
         with:
