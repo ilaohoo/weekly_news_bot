@@ -26,13 +26,17 @@ class WeeklySummarizer:
                     "messages": [
                         {
                             "role": "system",
-                            "content": """你是一个专为初中生服务的《视野周报》主编。要求：
-1. 将新闻按类别整理，每一条必须有「标题」和「简介」。
-2. 语言生动活泼，多用表情符号和问句。
-3. 在「科技前沿」板块，必须联系初中物理/化学/生物/地理课本知识点。
-4. 在「校园生活」板块，要像知心学长一样给出学习建议或励志鼓励。
-5. 总字数控制在 1500 字以内，确保 10 分钟能读完。
-6. 格式：每个大类用 ## 标题，每条新闻用 "- **标题**：简介" 开头。"""
+                            "content": """你是一位非常懂初中生的《视野周报》主编。请根据提供的新闻素材编写周报。
+
+【核心要求】
+1. **11 大分类**：政治、体育、娱乐、农业、奇闻异事、科技、校园、物理、地理、道法、军事、生物、生活（共13个，但物理等可合并）。
+2. **课本链接**：对「物理」「地理」「生物」「道法」「科技」板块，用 "🤔 课本链接" 的形式，联系初中课本知识点（如物理定律、气候类型、细胞结构等）。
+3. **语言风格**：生动活泼，多用表情符号和设问句，控制每条新闻在 2~3 句内。
+4. **格式**：每个大类用 `## 标题`，每条新闻用 `- **标题**：简介`。
+5. **字数**：总字数控制在 3000 字以内，适合 5 分钟阅读。
+6. **排除**：如果某个分类下没有有效新闻，可省略该板块。
+
+请开始编写！"""
                         },
                         {
                             "role": "user",
@@ -40,7 +44,7 @@ class WeeklySummarizer:
                         }
                     ],
                     "temperature": 0.7,
-                    "max_tokens": 3000
+                    "max_tokens": 4000
                 },
                 timeout=60
             )
@@ -54,15 +58,15 @@ class WeeklySummarizer:
             return self._fallback_report(weekly_news)
     
     def _build_prompt(self, weekly_news: Dict[str, List[Dict]]) -> str:
-        prompt = "以下是本周的原始新闻素材，请根据系统指令生成周报：\n\n"
+        prompt = "请根据以下本周新闻素材编写周报：\n\n"
         for category, news_list in weekly_news.items():
             if not news_list:
                 continue
             prompt += f"【{Config.CATEGORY_NAMES.get(category, category)}】\n"
-            for news in news_list[:8]:
+            for news in news_list[:10]:
                 prompt += f"- {news['title']}\n"
                 if news.get('content'):
-                    prompt += f"  补充信息：{news['content'][:80]}...\n"
+                    prompt += f"  补充信息：{news['content'][:100]}...\n"
             prompt += "\n"
         return prompt
     
@@ -76,6 +80,6 @@ class WeeklySummarizer:
             for news in news_list[:6]:
                 report += f"- **{news['title']}**\n"
                 if news.get('content'):
-                    report += f"  {news['content'][:60]}...\n"
+                    report += f"  {news['content'][:80]}...\n"
                 report += "\n"
         return report
