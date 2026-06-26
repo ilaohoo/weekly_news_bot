@@ -13,19 +13,22 @@ from src.config import Config
 def main():
     print(f"🚀 周报生成开始... {datetime.now()}")
     
-    # 1. 采集
+    # 1. 采集新闻
     print("📡 采集新闻...")
     collector = NewsCollector()
     weekly_news = collector.collect_all()
     total = sum(len(v) for v in weekly_news.values())
     print(f"✅ 采集完成，共 {total} 条")
     
-    # 2. AI 摘要
+    # 2. AI 生成摘要
     print("🤖 AI 生成摘要...")
     summarizer = WeeklySummarizer()
     content = summarizer.generate_weekly_report(weekly_news)
     
-    # 3. 排版 HTML（作为备份）
+    # 3. 去除所有 Markdown 加粗符号 **（PushPlus 不支持）
+    clean_content = content.replace("**", "")
+    
+    # 4. 排版 HTML（作为本地备份，保留原始格式便于预览）
     print("📝 排版 HTML...")
     html = ReportBuilder.build_html_report(content)
     date_str = datetime.now().strftime("%Y%m%d")
@@ -34,22 +37,15 @@ def main():
         f.write(html)
     print(f"💾 已保存 {filename}")
     
-    # 4. 推送（优先 PushPlus）
+    # 5. PushPlus 推送
     print("📤 推送周报...")
     publisher = PushPlusPublisher()
     title = f"{Config.WEEKLY_REPORT_TITLE} ({datetime.now().strftime('%m月%d日')})"
-    # 内容为纯文本，去掉 Markdown 标记（保留标题和列表）
-    # 我们直接发送 AI 生成的文本，它自带 ## 和 - ，PushPlus 支持纯文本
-    if publisher.send(title, content):
+    
+    if publisher.send(title, clean_content):
         print("✅ 推送成功！请查看微信消息。")
     else:
         print("❌ 推送失败，请检查日志。")
-    
-    # 5. 可选：如果 PushPlus 失败，可以尝试微信公众号（但个人号受限）
-    # if Config.WECHAT_APP_ID and Config.WECHAT_APP_SECRET:
-    #     from src.wechat_publisher import WeChatPublisher
-    #     wechat = WeChatPublisher()
-    #     wechat.send_news(title, html)
 
 if __name__ == "__main__":
     main()
