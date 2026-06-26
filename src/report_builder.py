@@ -1,13 +1,9 @@
-# src/report_builder.py
 from datetime import datetime
-import re
 
 class ReportBuilder:
     @staticmethod
     def build_html_report(report_content: str) -> str:
-        """
-        将 AI 生成的 Markdown 格式周报转换为美观的 HTML 页面
-        """
+        """将 AI 生成的 Markdown 内容转换为 HTML"""
         date_str = datetime.now().strftime("%Y年%m月%d日")
         html_body = ReportBuilder._markdown_to_html(report_content)
 
@@ -26,7 +22,7 @@ class ReportBuilder:
                     padding: 0 16px;
                     background: #f0f4f8;
                     color: #1a202c;
-                    line-height: 1.7;
+                    line-height: 1.8;
                 }}
                 .container {{
                     background: #ffffff;
@@ -74,6 +70,15 @@ class ReportBuilder:
                     color: #4a5568;
                     margin-top: 4px;
                 }}
+                .quote-block {{
+                    background: #edf2f7;
+                    padding: 12px 16px;
+                    border-radius: 10px;
+                    margin: 12px 0;
+                    border-left: 4px solid #e53e3e;
+                    font-size: 14px;
+                    color: #2d3748;
+                }}
                 .footer {{
                     text-align: center;
                     margin-top: 30px;
@@ -91,9 +96,7 @@ class ReportBuilder:
                     <div class="date">📅 {date_str}</div>
                 </div>
                 {html_body}
-                <div class="footer">
-                    📖 每周更新 · 由 AI 机器人自动生成
-                </div>
+                <div class="footer">📖 每周更新 · 由 AI 机器人自动生成</div>
             </div>
         </body>
         </html>
@@ -101,15 +104,20 @@ class ReportBuilder:
 
     @staticmethod
     def _markdown_to_html(text: str) -> str:
-        """
-        将 Markdown 风格的文本转换为 HTML 片段
-        支持 ## 标题和 - 列表项（标题：简介）
-        """
+        """将 Markdown 文本转换为 HTML"""
         lines = text.split('\n')
         result = []
+        in_quote = False
+        
         for line in lines:
             line = line.strip()
             if not line:
+                continue
+
+            # 处理引用块（以 > 开头）
+            if line.startswith('>'):
+                content = line[1:].strip()
+                result.append(f'<div class="quote-block">{content}</div>')
                 continue
 
             # 处理二级标题
@@ -117,23 +125,21 @@ class ReportBuilder:
                 result.append(f'<div class="category">{line[3:]}</div>')
                 continue
 
-            # 处理列表项（以 "- " 开头）
+            # 处理列表项
             if line.startswith('- '):
                 content = line[2:]
-                # 尝试用中文冒号或英文冒号分割标题和简介
                 if '：' in content:
                     title, summary = content.split('：', 1)
                 elif ':' in content:
                     title, summary = content.split(':', 1)
                 else:
                     title, summary = content, ""
-
-                # 构建安全的 HTML（summary 可能包含特殊字符，但此处信任 AI 生成内容）
+                
                 summary_html = f'<div class="news-summary">{summary}</div>' if summary else ""
                 result.append(f'<div class="news-item"><div class="news-title">• {title}</div>{summary_html}</div>')
                 continue
 
-            # 其他普通段落
+            # 普通段落
             result.append(f'<p style="margin:6px 0;">{line}</p>')
 
         return ''.join(result)
