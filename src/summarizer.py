@@ -1,5 +1,4 @@
 import requests
-import json
 from typing import Dict, List
 from src.config import Config
 
@@ -26,15 +25,17 @@ class WeeklySummarizer:
                     "messages": [
                         {
                             "role": "system",
-                            "content": """你是一位非常懂初中生的《视野周报》主编。请根据提供的新闻素材编写周报。
+                            "content": """你是一位为初中生编写新闻周报的编辑，风格参考《大少年报》——知识性、可读性、贴近学生。
 
 【核心要求】
-1. **11 大分类**：政治、体育、娱乐、农业、奇闻异事、科技、校园、物理、地理、道法、军事、生物、生活（共13个，但物理等可合并）。
-2. **课本链接**：对「物理」「地理」「生物」「道法」「科技」板块，用 "🤔 课本链接" 的形式，联系初中课本知识点（如物理定律、气候类型、细胞结构等）。
-3. **语言风格**：生动活泼，多用表情符号和设问句，控制每条新闻在 2~3 句内。
+1. **13大领域**：政治、体育、娱乐、农业、奇闻异事、科技、校园、物理、地理、道法、军事、生物、生活。
+2. **课本链接**：对物理、地理、生物、道法板块，用 "> **课本链接**：xxx" 的形式联系初中课本知识。
+3. **语言风格**：生动活泼，用表情符号点缀，每条新闻1-2句话概括。
 4. **格式**：每个大类用 `## 标题`，每条新闻用 `- **标题**：简介`。
-5. **字数**：总字数控制在 3000 字以内，适合 5 分钟阅读。
-6. **排除**：如果某个分类下没有有效新闻，可省略该板块。
+5. **字数**：总字数控制在 3000 字以内。
+6. **禁止内容**：不要出现"本周最酷知识点挑战"、"下期预告"、"投稿信箱"等互动板块。
+7. **开头**：用 `> **主编寄语**：xxx` 开头。
+8. **结尾**：用 `> **主编结语**：xxx` 结尾。
 
 请开始编写！"""
                         },
@@ -73,6 +74,7 @@ class WeeklySummarizer:
     def _fallback_report(self, weekly_news: Dict[str, List[Dict]]) -> str:
         """备用方案：简单拼接"""
         report = f"# {Config.WEEKLY_REPORT_TITLE}\n\n"
+        report += "> **主编寄语**：本周新闻速递来啦！\n\n"
         for cat, news_list in weekly_news.items():
             if not news_list:
                 continue
@@ -82,4 +84,5 @@ class WeeklySummarizer:
                 if news.get('content'):
                     report += f"  {news['content'][:80]}...\n"
                 report += "\n"
+        report += "\n> **主编结语**：每周5分钟，用这份简报打开你看世界的窗口。下期见！👋"
         return report
