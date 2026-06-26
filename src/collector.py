@@ -5,7 +5,6 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import List, Dict
 from src.config import Config
-import time
 
 class NewsCollector:
     def __init__(self, db_path="data/news.db"):
@@ -31,7 +30,7 @@ class NewsCollector:
         conn.close()
     
     def _classify_news(self, title: str) -> str:
-        """根据标题和关键词自动分类，返回 Config.CATEGORY_NAMES 中的 key"""
+        """根据标题和关键词自动分类"""
         for category, words in Config.KEYWORDS.items():
             for word in words:
                 if word in title:
@@ -52,7 +51,6 @@ class NewsCollector:
                 title = item.get("title")
                 if title:
                     category = self._classify_news(title)
-                    # 只保留我们定义的分类，其他归为 other（可丢弃）
                     if category in Config.CATEGORY_NAMES:
                         news_list.append({
                             "title": title,
@@ -65,7 +63,7 @@ class NewsCollector:
         except Exception as e:
             print(f"采集百度热搜失败: {e}")
         
-        # 模拟补充科技/校园/物理等新闻（便于测试，真实使用时请替换为真实 RSS）
+        # 模拟数据（便于测试，生产环境请替换为真实 RSS）
         mock_news = [
             {
                 "title": "江门中微子实验登上《自然》封面，精度提高1.6倍",
@@ -84,9 +82,9 @@ class NewsCollector:
                 "published_at": datetime.now().strftime("%Y-%m-%d")
             },
             {
-                "title": "北京中考道法卷考“人形机器人”",
+                "title": "北京中考道法卷考\"人形机器人\"",
                 "link": "",
-                "content": "专家称试题为考生提供“带着思考去行动”的空间。",
+                "content": "专家称试题为考生提供\"带着思考去行动\"的空间。",
                 "source": "中国教育报",
                 "category": "law_ethics",
                 "published_at": datetime.now().strftime("%Y-%m-%d")
@@ -114,13 +112,45 @@ class NewsCollector:
                 "source": "健康中国",
                 "category": "life",
                 "published_at": datetime.now().strftime("%Y-%m-%d")
+            },
+            {
+                "title": "中国女篮绝杀进入亚洲杯四强",
+                "link": "",
+                "content": "最后3秒上演惊天逆转。",
+                "source": "体育新闻",
+                "category": "sports",
+                "published_at": datetime.now().strftime("%Y-%m-%d")
+            },
+            {
+                "title": "全国夏粮丰收在望",
+                "link": "",
+                "content": "今年气象条件总体有利，小麦颗粒饱满。",
+                "source": "农民日报",
+                "category": "agriculture",
+                "published_at": datetime.now().strftime("%Y-%m-%d")
+            },
+            {
+                "title": "千足虫比脊椎动物早8000万年登上陆地",
+                "link": "",
+                "content": "新研究刷新了陆生动物起源认知。",
+                "source": "科学探索",
+                "category": "oddities",
+                "published_at": datetime.now().strftime("%Y-%m-%d")
+            },
+            {
+                "title": "《头脑特工队2》票房破10亿",
+                "link": "",
+                "content": "新情绪主角\"焦虑\"和\"嫉妒\"引发讨论。",
+                "source": "娱乐快报",
+                "category": "entertainment",
+                "published_at": datetime.now().strftime("%Y-%m-%d")
             }
         ]
         news_list.extend(mock_news)
         return news_list
     
     def collect_all(self) -> Dict[str, List[Dict]]:
-        """采集所有类别的新闻，自动适应配置中的分类"""
+        """采集所有类别的新闻"""
         all_news = {cat: [] for cat in Config.CATEGORY_NAMES.keys()}
         
         hot_news = self.fetch_hot_search()
@@ -148,7 +178,7 @@ class NewsCollector:
             conn.close()
     
     def get_weekly_news(self) -> Dict[str, List[Dict]]:
-        """从数据库获取本周新闻（按类别分组）"""
+        """从数据库获取本周新闻"""
         week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
