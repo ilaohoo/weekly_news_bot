@@ -8,17 +8,14 @@ class Config:
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
     DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
     
-    # PushPlus 推送 Token（推荐）
-    PUSHPLUS_TOKEN = os.getenv("PUSHPLUS_TOKEN")
-    
-    # 微信推送（备用，但个人订阅号受限，建议停用）
-    WECHAT_APP_ID = os.getenv("WECHAT_APP_ID")
-    WECHAT_APP_SECRET = os.getenv("WECHAT_APP_SECRET")
+    # ---------- WxPusher 推送 ----------
+    WXPUSHER_APP_TOKEN = os.getenv("WXPUSHER_APP_TOKEN")
+    WXPUSHER_UID = os.getenv("WXPUSHER_UID")
     
     # ---------- 周报标题 ----------
     WEEKLY_REPORT_TITLE = "🌍 初中生一周世界大事简报"
     
-    # ---------- 11 大分类显示名称 ----------
+    # ---------- 13 大分类显示名称 ----------
     CATEGORY_NAMES = {
         "politics": "🌍 世界国内政治大事",
         "sports": "⚽ 体育赛事预告与结果",
@@ -27,12 +24,12 @@ class Config:
         "oddities": "🔮 奇闻异事",
         "technology": "🚀 科技前沿与科学发现",
         "campus": "📚 校园生活与学习加油站",
-        "physics": "⚛️ 物理前沿",              # 新增
-        "geography": "🌍 地理与地球科学",       # 新增
-        "law_ethics": "⚖️ 道德与法治",          # 新增
-        "military": "⚔️ 军事与国防",            # 新增
-        "biology": "🧬 生物与生命科学",          # 新增
-        "life": "🏠 生活与健康科普"              # 新增
+        "physics": "⚛️ 物理前沿",
+        "geography": "🌍 地理与地球科学",
+        "law_ethics": "⚖️ 道德与法治",
+        "military": "⚔️ 军事与国防",
+        "biology": "🧬 生物与生命科学",
+        "life": "🏠 生活与健康科普"
     }
     
     # ---------- 关键词分类映射 ----------
@@ -42,7 +39,7 @@ class Config:
         "entertainment": ["明星", "电影", "音乐", "演唱会", "颁奖", "综艺", "演员", "歌手", "票房", "导演"],
         "agriculture": ["农业", "粮食", "种植", "养殖", "农村", "农民", "丰收", "农产品", "乡村", "耕地"],
         "oddities": ["奇闻", "稀奇", "罕见", "神奇", "古怪", "趣事", "惊奇", "世界之最", "未解之谜"],
-        "technology": ["科技", "AI", "人工智能", "宇宙", "航天", "卫星", "手机", "芯片", "机器人", "5G", "生物", "基因", "新能源", "量子", "太空"],
+        "technology": ["科技", "AI", "人工智能", "宇宙", "航天", "卫星", "手机", "芯片", "机器人", "5G", "新能源", "量子", "太空"],
         "campus": ["学习", "考试", "中考", "高考", "大学", "教育", "读书", "励志", "榜样", "校园", "学霸", "作文", "数学", "英语", "老师", "学生"],
         "physics": ["物理", "量子", "粒子", "中微子", "引力波", "暗物质", "原子", "核", "相对论", "电磁"],
         "geography": ["地理", "蓝洞", "珊瑚礁", "地质", "气候", "海洋", "地震", "火山", "板块", "冰川"],
