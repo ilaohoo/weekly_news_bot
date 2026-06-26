@@ -9,10 +9,12 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # 1. 升级 actions/checkout 到 v6
+      - uses: actions/checkout@v6
       
+      # 2. 升级 actions/setup-python 到 v5
       - name: 安装 Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       
@@ -29,8 +31,9 @@ jobs:
           WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
         run: python main.py
       
+      # 3. （可选）如果你之前已将 upload-artifact 升级到 v4，建议也一并升级
       - name: 上传 HTML 结果
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: weekly-report
           path: weekly_report_*.html
