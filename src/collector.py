@@ -31,7 +31,7 @@ class NewsCollector:
         conn.close()
     
     def _classify_news(self, title: str) -> str:
-        """根据标题和关键词自动分类"""
+        """根据标题和关键词自动分类，返回 Config.CATEGORY_NAMES 中的 key"""
         for category, words in Config.KEYWORDS.items():
             for word in words:
                 if word in title:
@@ -39,7 +39,7 @@ class NewsCollector:
         return "other"
     
     def fetch_hot_search(self) -> List[Dict]:
-        """采集百度热搜并自动分类（示例）"""
+        """采集百度热搜并自动分类"""
         news_list = []
         try:
             url = "https://top.baidu.com/board?tab=realtime"
@@ -52,7 +52,7 @@ class NewsCollector:
                 title = item.get("title")
                 if title:
                     category = self._classify_news(title)
-                    # 只保留我们需要的7大类，其他归为other（可酌情过滤）
+                    # 只保留我们定义的分类，其他归为 other（可丢弃）
                     if category in Config.CATEGORY_NAMES:
                         news_list.append({
                             "title": title,
@@ -65,31 +65,54 @@ class NewsCollector:
         except Exception as e:
             print(f"采集百度热搜失败: {e}")
         
-        # 模拟补充科技和校园新闻（真实使用时，建议替换为 RSS 或 API）
-        # 这些模拟数据能保证测试时科技/校园板块不为空
+        # 模拟补充科技/校园/物理等新闻（便于测试，真实使用时请替换为真实 RSS）
         mock_news = [
             {
-                "title": "中国科学家实现量子计算新突破，运算速度提升百倍",
+                "title": "江门中微子实验登上《自然》封面，精度提高1.6倍",
                 "link": "",
-                "content": "该成果为未来量子计算机研制奠定基础，相关研究发表在《物理评论快报》。",
+                "content": "我国地下700米的中微子实验取得重大突破。",
                 "source": "科技日报",
-                "category": "technology",
+                "category": "physics",
                 "published_at": datetime.now().strftime("%Y-%m-%d")
             },
             {
-                "title": "2026年中考作文题趋势分析：科技与人文成为热点",
+                "title": "中国首次发现珊瑚礁蓝洞，距今约3200年",
                 "link": "",
-                "content": "多地模拟考作文题聚焦AI与生活，专家建议考生多关注科技新闻。",
+                "content": "在黄岩岛潟湖内发现，面积约1492平方米。",
+                "source": "地理科学",
+                "category": "geography",
+                "published_at": datetime.now().strftime("%Y-%m-%d")
+            },
+            {
+                "title": "北京中考道法卷考“人形机器人”",
+                "link": "",
+                "content": "专家称试题为考生提供“带着思考去行动”的空间。",
                 "source": "中国教育报",
-                "category": "campus",
+                "category": "law_ethics",
                 "published_at": datetime.now().strftime("%Y-%m-%d")
             },
             {
-                "title": "16岁初中生发现小行星，获国际天文联合会认证",
+                "title": "中国航母编队反侦察能力引关注",
                 "link": "",
-                "content": "这名同学利用学校天文台数据，在火星与木星之间发现了一颗新天体。",
-                "source": "科普中国",
-                "category": "technology",
+                "content": "日方通报没有发布任何航母照片。",
+                "source": "国防军事",
+                "category": "military",
+                "published_at": datetime.now().strftime("%Y-%m-%d")
+            },
+            {
+                "title": "中国科学家绘制七鳃鳗全脑图谱",
+                "link": "",
+                "content": "成果登上《科学》封面，揭示脑演化奥秘。",
+                "source": "生物世界",
+                "category": "biology",
+                "published_at": datetime.now().strftime("%Y-%m-%d")
+            },
+            {
+                "title": "6月26日国际禁毒日，主题防范青少年药物滥用",
+                "link": "",
+                "content": "多地开展禁毒宣传，普及识毒防毒知识。",
+                "source": "健康中国",
+                "category": "life",
                 "published_at": datetime.now().strftime("%Y-%m-%d")
             }
         ]
@@ -97,17 +120,15 @@ class NewsCollector:
         return news_list
     
     def collect_all(self) -> Dict[str, List[Dict]]:
-        """采集所有类别的新闻"""
-        # 初始化所有分类
+        """采集所有类别的新闻，自动适应配置中的分类"""
         all_news = {cat: [] for cat in Config.CATEGORY_NAMES.keys()}
         
-        # 从热搜采集
         hot_news = self.fetch_hot_search()
         for news in hot_news:
             category = news["category"]
             if category in all_news:
                 all_news[category].append(news)
-                self._save_news(news)  # 存入数据库去重
+                self._save_news(news)
         
         return all_news
     
