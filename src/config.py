@@ -8,9 +8,8 @@ class Config:
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
     DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
     
-    # ---------- WxPusher 推送 ----------
-    WXPUSHER_APP_TOKEN = os.getenv("WXPUSHER_APP_TOKEN")
-    WXPUSHER_UID = os.getenv("WXPUSHER_UID")
+    # ---------- PushPlus 推送 ----------
+    PUSHPLUS_TOKEN = os.getenv("PUSHPLUS_TOKEN")
     
     # ---------- 周报标题 ----------
     WEEKLY_REPORT_TITLE = "🌍 初中生一周世界大事简报"
