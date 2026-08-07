@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 from src.config import Config
 import xml.etree.ElementTree as ET
+import re
 
 class NewsCollector:
     def __init__(self, db_path="data/news.db"):
@@ -28,6 +29,7 @@ class NewsCollector:
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_title ON news(title)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_source ON news(source)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_category ON news(category)')
         conn.commit()
         conn.close()
     
@@ -48,7 +50,241 @@ class NewsCollector:
         except Exception:
             return None
     
-    # ==================== 数据源：国内科技/学术网站 ====================
+    def _is_recent(self, pub_date: str, days: int = 7) -> bool:
+        """检查新闻发布日期是否在指定天数内"""
+        if not pub_date:
+            return True  # 无日期信息则默认保留
+        try:
+            from email.utils import parsedate_to_datetime
+            dt = parsedate_to_datetime(pub_date)
+            return (datetime.now() - dt).days <= days
+        except Exception:
+            # 尝试其他日期格式
+            try:
+                # 尝试常见的 RSS 日期格式
+                dt = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %z")
+                return (datetime.now().replace(tzinfo=dt.tzinfo) - dt).days <= days
+            except Exception:
+                return True  # 解析失败则默认保留
+    
+    def _normalize_title(self, title: str) -> str:
+        """标准化标题，用于更精准的去重"""
+        # 去除常见干扰词
+        title = re.sub(r'[，,、。．：:；;！!？?]', '', title)
+        # 去除多余空格
+        title = re.sub(r'\s+', '', title)
+        # 截取前30个字符作为去重键
+        return title[:30]
+    
+    # ==================== 农业板块专属数据源 ====================
+    
+    def fetch_agri_moa(self) -> List[Dict]:
+        """农业农村部官网 - 最新政策与动态"""
+        news_list = []
+        try:
+            # 农业农村部官网新闻列表
+            url = "http://www.moa.gov.cn/xw/"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            resp = self._safe_get(url, timeout=10)
+            if resp and resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "html.parser")
+                # 查找新闻列表（根据实际页面结构调整）
+                items = soup.select("ul.list li a")[:15] or soup.select(".news-list a")[:15]
+                for item in items:
+                    title = item.text.strip()
+                    if not title or len(title) < 5:
+                        continue
+                    link = item.get("href", "")
+                    if link and not link.startswith("http"):
+                        link = "http://www.moa.gov.cn" + link
+                    cat = self._classify_news(title)
+                    if cat in Config.CATEGORY_NAMES:
+                        news_list.append({
+                            "title": title,
+                            "link": link,
+                            "content": "",
+                            "source": "农业农村部",
+                            "category": cat,
+                            "published_at": datetime.now().strftime("%Y-%m-%d")
+                        })
+                print(f"✅ 农业农村部: {len(news_list)} 条")
+        except Exception as e:
+            print(f"⚠️ 农业农村部异常: {e}")
+        return news_list
+    
+    def fetch_agri_farmer(self) -> List[Dict]:
+        """农民日报 - 中国农业新闻网 RSS"""
+        news_list = []
+        try:
+            # 农民日报 RSS（如果有）
+            rss_url = "http://www.farmer.com.cn/rss/"
+            resp = self._safe_get(rss_url, timeout=10)
+            if resp and resp.status_code == 200:
+                try:
+                    root = ET.fromstring(resp.content)
+                    for item in root.findall(".//item")[:15]:
+                        title_elem = item.find("title")
+                        title = title_elem.text if title_elem is not None else ""
+                        if not title:
+                            continue
+                        link_elem = item.find("link")
+                        link = link_elem.text if link_elem is not None else ""
+                        pub_elem = item.find("pubDate")
+                        pub_date = pub_elem.text if pub_elem is not None else ""
+                        # 检查时效性
+                        if not self._is_recent(pub_date, 10):
+                            continue
+                        cat = self._classify_news(title)
+                        if cat in Config.CATEGORY_NAMES:
+                            news_list.append({
+                                "title": title,
+                                "link": link,
+                                "content": "",
+                                "source": "农民日报",
+                                "category": cat,
+                                "published_at": datetime.now().strftime("%Y-%m-%d")
+                            })
+                    print(f"✅ 农民日报: {len(news_list)} 条")
+                except ET.ParseError:
+                    pass
+        except Exception as e:
+            print(f"⚠️ 农民日报异常: {e}")
+        
+        # 备用：直接爬取农民日报网站
+        if not news_list:
+            try:
+                url = "http://www.farmer.com.cn/"
+                resp = self._safe_get(url, timeout=10)
+                if resp and resp.status_code == 200:
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    items = soup.select(".news-title a")[:15] or soup.select(".list-item a")[:15]
+                    for item in items:
+                        title = item.text.strip()
+                        if not title or len(title) < 5:
+                            continue
+                        link = item.get("href", "")
+                        if link and not link.startswith("http"):
+                            link = "http://www.farmer.com.cn" + link
+                        cat = self._classify_news(title)
+                        if cat in Config.CATEGORY_NAMES:
+                            news_list.append({
+                                "title": title,
+                                "link": link,
+                                "content": "",
+                                "source": "农民日报",
+                                "category": cat,
+                                "published_at": datetime.now().strftime("%Y-%m-%d")
+                            })
+                    print(f"✅ 农民日报(备用): {len(news_list)} 条")
+            except Exception as e:
+                print(f"⚠️ 农民日报备用异常: {e}")
+        return news_list
+    
+    def fetch_agri_xinhua(self) -> List[Dict]:
+        """新华社三农频道"""
+        news_list = []
+        try:
+            url = "http://www.xinhuanet.com/fortune/agriculture/"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            resp = self._safe_get(url, timeout=10)
+            if resp and resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "html.parser")
+                items = soup.select(".news-item a")[:15] or soup.select(".list a")[:15]
+                for item in items:
+                    title = item.text.strip()
+                    if not title or len(title) < 5:
+                        continue
+                    link = item.get("href", "")
+                    if link and not link.startswith("http"):
+                        link = "http://www.xinhuanet.com" + link
+                    cat = self._classify_news(title)
+                    if cat in Config.CATEGORY_NAMES:
+                        news_list.append({
+                            "title": title,
+                            "link": link,
+                            "content": "",
+                            "source": "新华社三农",
+                            "category": cat,
+                            "published_at": datetime.now().strftime("%Y-%m-%d")
+                        })
+                print(f"✅ 新华社三农: {len(news_list)} 条")
+        except Exception as e:
+            print(f"⚠️ 新华社三农异常: {e}")
+        return news_list
+    
+    def fetch_agri_cnagri(self) -> List[Dict]:
+        """中国农业信息网（农业部信息中心）"""
+        news_list = []
+        try:
+            url = "http://www.agri.cn/"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            resp = self._safe_get(url, timeout=10)
+            if resp and resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "html.parser")
+                items = soup.select(".news a")[:15] or soup.select(".list a")[:15]
+                for item in items:
+                    title = item.text.strip()
+                    if not title or len(title) < 5:
+                        continue
+                    link = item.get("href", "")
+                    if link and not link.startswith("http"):
+                        link = "http://www.agri.cn" + link
+                    cat = self._classify_news(title)
+                    if cat in Config.CATEGORY_NAMES:
+                        news_list.append({
+                            "title": title,
+                            "link": link,
+                            "content": "",
+                            "source": "中国农业信息网",
+                            "category": cat,
+                            "published_at": datetime.now().strftime("%Y-%m-%d")
+                        })
+                print(f"✅ 中国农业信息网: {len(news_list)} 条")
+        except Exception as e:
+            print(f"⚠️ 中国农业信息网异常: {e}")
+        return news_list
+    
+    # ==================== 农业数据源 - RSS 聚合（备用） ====================
+    
+    def fetch_agri_rss_aggregator(self) -> List[Dict]:
+        """农业 RSS 聚合源（多个农业网站的综合）"""
+        news_list = []
+        # 一些公开的农业 RSS 源
+        rss_sources = [
+            ("http://www.zgnyqss.com/feed/", "中国农业趋势"),
+            ("http://www.agri.gov.cn/rss/", "农业部综合"),
+            ("http://www.farmer.com.cn/rss/", "农民日报"),
+        ]
+        for rss_url, source_name in rss_sources:
+            try:
+                resp = self._safe_get(rss_url, timeout=10)
+                if resp and resp.status_code == 200:
+                    root = ET.fromstring(resp.content)
+                    for item in root.findall(".//item")[:8]:
+                        title_elem = item.find("title")
+                        title = title_elem.text if title_elem is not None else ""
+                        if not title:
+                            continue
+                        link_elem = item.find("link")
+                        link = link_elem.text if link_elem is not None else ""
+                        cat = self._classify_news(title)
+                        if cat in Config.CATEGORY_NAMES:
+                            news_list.append({
+                                "title": title,
+                                "link": link,
+                                "content": "",
+                                "source": source_name,
+                                "category": cat,
+                                "published_at": datetime.now().strftime("%Y-%m-%d")
+                            })
+            except Exception as e:
+                print(f"⚠️ {source_name} RSS异常: {e}")
+                continue
+        if news_list:
+            print(f"✅ 农业RSS聚合: {len(news_list)} 条")
+        return news_list
+    
+    # ==================== 原有数据源（国内科技/学术） ====================
     
     def fetch_guokr(self) -> List[Dict]:
         """果壳网 RSS"""
@@ -321,11 +557,10 @@ class NewsCollector:
         return news_list
     
     def fetch_xinhua_tech(self) -> List[Dict]:
-        """新华网科技频道（通过RSS聚合）"""
+        """新华网科技频道"""
         news_list = []
         try:
-            # 新华网科技频道的RSS地址（可能需要从官网获取）
-            rss_url = "http://www.xinhuanet.com/tech/xw.xml"  # 示例，可能需调整
+            rss_url = "http://www.xinhuanet.com/tech/xw.xml"
             resp = self._safe_get(rss_url, timeout=10)
             if resp and resp.status_code == 200:
                 root = ET.fromstring(resp.content)
@@ -351,7 +586,7 @@ class NewsCollector:
             print(f"⚠️ 新华网科技异常: {e}")
         return news_list
     
-    # ==================== 数据源：国外科技网站 ====================
+    # ==================== 国外科技网站 ====================
     
     def fetch_techcrunch(self) -> List[Dict]:
         """TechCrunch RSS"""
@@ -504,7 +739,7 @@ class NewsCollector:
         return news_list
     
     def fetch_hn(self) -> List[Dict]:
-        """Hacker News RSS (front page)"""
+        """Hacker News RSS"""
         news_list = []
         try:
             rss_url = "https://hnrss.org/frontpage"
@@ -623,7 +858,7 @@ class NewsCollector:
             print(f"⚠️ CNET异常: {e}")
         return news_list
     
-    # ==================== 数据源：国内综合（知乎、头条、百度） ====================
+    # ==================== 国内综合数据源 ====================
     
     def fetch_zhihu(self) -> List[Dict]:
         """知乎热榜 API"""
@@ -726,10 +961,18 @@ class NewsCollector:
         
         print("🔄 开始采集多源数据...")
         
-        # 按优先级依次采集
+        # 按优先级依次采集（农业源放在前面，确保农业新闻充足）
         sources = [
+            # ====== 农业专属源（优先） ======
+            ("农业农村部", self.fetch_agri_moa),
+            ("农民日报", self.fetch_agri_farmer),
+            ("新华社三农", self.fetch_agri_xinhua),
+            ("中国农业信息网", self.fetch_agri_cnagri),
+            ("农业RSS聚合", self.fetch_agri_rss_aggregator),
+            # ====== 国内综合源 ======
             ("知乎热榜", self.fetch_zhihu),
             ("今日头条", self.fetch_toutiao),
+            # ====== 国内科技源 ======
             ("果壳网", self.fetch_guokr),
             ("科学松鼠会", self.fetch_songshuhui),
             ("36氪", self.fetch_36kr),
@@ -740,6 +983,7 @@ class NewsCollector:
             ("Solidot", self.fetch_solidot),
             ("IT之家", self.fetch_ithome),
             ("新华网科技", self.fetch_xinhua_tech),
+            # ====== 国外科技源 ======
             ("TechCrunch", self.fetch_techcrunch),
             ("Ars Technica", self.fetch_arstechnica),
             ("Wired", self.fetch_wired),
@@ -749,6 +993,7 @@ class NewsCollector:
             ("MIT Tech Review", self.fetch_mit_tech_review),
             ("BBC Technology", self.fetch_bbc_tech),
             ("CNET", self.fetch_cnet),
+            # ====== 国内综合（备用） ======
             ("百度热搜", self.fetch_baidu),
         ]
         
@@ -756,9 +1001,9 @@ class NewsCollector:
             try:
                 news_list = fetch_func()
                 for news in news_list:
-                    # 按标题去重（取前50字符作为key）
-                    title_key = news["title"][:50]
-                    if title_key not in seen_titles:
+                    # 使用标准化标题去重
+                    title_key = self._normalize_title(news["title"])
+                    if title_key not in seen_titles and len(title_key) > 3:
                         seen_titles.add(title_key)
                         all_news.append(news)
             except Exception as e:
@@ -773,7 +1018,8 @@ class NewsCollector:
         
         print(f"📊 采集汇总: 共 {len(all_news)} 条新闻（去重后）")
         for cat, count in sorted(stats.items()):
-            print(f"   {Config.CATEGORY_NAMES.get(cat, cat)}: {count} 条")
+            cat_name = Config.CATEGORY_NAMES.get(cat, cat)
+            print(f"   {cat_name}: {count} 条")
         
         return all_news
     
@@ -888,10 +1134,17 @@ class NewsCollector:
         ]
     
     def _save_news(self, news: Dict):
-        """保存新闻到数据库，按标题去重"""
+        """保存新闻到数据库，按标题去重（增强版）"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         try:
+            # 使用标准化标题检查是否已存在
+            normalized = self._normalize_title(news["title"])
+            cursor.execute('SELECT id FROM news WHERE title LIKE ?', (f'%{normalized[:20]}%',))
+            if cursor.fetchone():
+                return
+            
+            # 检查是否已存在完全相同标题
             cursor.execute('SELECT id FROM news WHERE title = ?', (news["title"],))
             if cursor.fetchone():
                 return
@@ -921,7 +1174,7 @@ class NewsCollector:
                 FROM news
                 WHERE category = ? AND date(collected_at) >= date(?)
                 ORDER BY collected_at DESC
-                LIMIT 15
+                LIMIT 20
             ''', (category, week_ago))
             rows = cursor.fetchall()
             for row in rows:
